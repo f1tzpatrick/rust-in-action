@@ -1,18 +1,55 @@
 // grep very-lite
 
 fn main() {
-    let search_term = "picture";
+    let context_lines = 1;
+    let search_term = "oo";
     let quote = "\
-Every face, every shop, bedroom window, public-house, and
-dark square is a picture feverishly turned--in search of what?
-// please add a line break to the following (55 char limit)
-It is the same with books. What do we seek through millions of pages?";
+Every face, every shop,
+bedroom window, public-house, and
+dark square is a picture
+feverishly turned--in search of what?
+It is the same with books.
+What do we seek
+through millions of pages?";
   
-    let mut line_num: usize = 1;
-    for line in quote.lines() {
-        if line.contains(search_term) {
-            println!("{}: {}", line_num, line);
+    
+    println!("{}", grep(quote, search_term, context_lines));
+}
+
+fn grep<'a>(
+    source_text: &'a str,
+    search_term: &'a str,
+    context_size: usize
+    ) -> String {
+
+    let mut matching_lines: Vec<usize> = Vec::new();
+    let mut output = String::new();
+
+    // First loop: Identify matching lines
+    for (line_num, text) in source_text.lines().enumerate() {
+        if text.contains(search_term) {
+            matching_lines.push(line_num);
         }
-        line_num += 1;
     }
+
+    if matching_lines.is_empty() {
+        return "".to_string()
+    }
+
+    // Second Loop: Grab content from source_text for output
+    for (line_num, text) in source_text.lines().enumerate() {
+        for target in matching_lines.iter() {
+            
+            let lower_bound = target.saturating_sub(context_size);
+            let upper_bound = target + context_size;
+
+            // if line_num is in the context bounds of the matched line
+            // add the line to output
+            if (line_num >= lower_bound) && (line_num <= upper_bound) {
+                output += &text;
+                output.push('\n');
+            }
+        }
+    }
+    output
 }
