@@ -1,5 +1,7 @@
 // grep very-lite
 
+use regex::Regex;
+
 fn main() {
     let context_lines = 1;
     let search_term = "oo";
@@ -22,13 +24,15 @@ fn grep<'a>(
     context_size: usize
     ) -> String {
 
+    let re = Regex::new(search_term).unwrap();
     let mut matching_lines: Vec<usize> = Vec::new();
     let mut output = String::new();
 
     // First loop: Identify matching lines
     for (line_num, text) in source_text.lines().enumerate() {
-        if text.contains(search_term) {
-            matching_lines.push(line_num);
+        match re.find(text) {
+            Some(_) => matching_lines.push(line_num),
+            None => (),
         }
     }
 
