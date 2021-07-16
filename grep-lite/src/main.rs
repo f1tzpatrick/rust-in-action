@@ -1,5 +1,9 @@
 // grep very-lite
 
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
+use std::io::SeekFrom;
 use regex::Regex;
 use clap::{App, Arg};
 
@@ -10,7 +14,12 @@ fn main() {
         .about("searches for terms in text")
         .arg(Arg::with_name("search-term")
             .help("A String pattern to search for")
-            // .long("search-term")
+            .long("search-term")
+            .takes_value(true)
+            .required(true))
+        .arg(Arg::with_name("input")
+            .help("Text to search through")
+            .long("input")
             .takes_value(true)
             .required(true))
         .arg(Arg::with_name("context-size")
@@ -20,8 +29,13 @@ fn main() {
         .get_matches();
 
     let search_term = match args.value_of("search-term") {
-        Some(input) => String::from(input),
+        Some(input) => input,
         None => panic!("You need to provide a search term")
+    };
+
+    let input = match args.value_of("input") {
+        Some(input) => input,
+        None => panic!("You need to provide some text to search")
     };
 
     let context_lines = match args.value_of("context-size") {
@@ -32,17 +46,7 @@ fn main() {
         None => 0,
     };
 
-    let quote = "\
-Every face, every shop,
-bedroom window, public-house, and
-dark square is a picture
-feverishly turned--in search of what?
-It is the same with books.
-What do we seek
-through millions of pages?";
-  
-    
-    println!("{}", grep(quote, &search_term, context_lines));
+    println!("{}", grep(input, search_term, context_lines));
 }
 
 fn grep<'a>(
@@ -50,14 +54,20 @@ fn grep<'a>(
     search_term: &'a str,
     context_size: usize
     ) -> String {
-
+    
     let re = Regex::new(search_term).unwrap();
     let mut matching_lines: Vec<usize> = Vec::new();
     let mut output = String::new();
+    
+    // Create a mutable BufReader and iterate over it by reference, to support
+    // reuse of the underlying File object
+    let source_text = File::open(source_text).unwrap();
+    let mut reader = BufReader::new(source_text);
 
     // First loop: Identify matching lines
-    for (line_num, text) in source_text.lines().enumerate() {
-        match re.find(text) {
+    for (line_num, text) in reader.by_ref().lines().enumerate() {
+        let text = text.unwrap();
+        match re.find(&text) {
             Some(_) => matching_lines.push(line_num),
             None => (),
         }
@@ -67,8 +77,13 @@ fn grep<'a>(
         return "".to_string()
     }
 
+    // At this point the reader has read through to the end of the file
+    // In order to read it again, we must move the cursor back to the start
+    reader.seek(SeekFrom::Start(0)).unwrap();
+
     // Second Loop: Grab content from source_text for output
-    for (line_num, text) in source_text.lines().enumerate() {
+    for (line_num, text) in reader.by_ref().lines().enumerate() {
+        let text = text.unwrap();
         for target in matching_lines.iter() {
             
             let lower_bound = target.saturating_sub(context_size);
