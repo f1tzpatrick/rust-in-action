@@ -1,5 +1,9 @@
 #![allow(unused_variables)]
 
+use std::borrow::Borrow;
+use std::rc::Rc;
+use std::cell::RefCell;
+
 // Clone and Copy traits can be Derived for simple Structs 
 #[derive(Debug, Clone, Copy)]
 enum SatelliteStatus {
@@ -58,9 +62,17 @@ impl CubeSat {
     }
 }
 
-struct GroundStation {}
+type Mhz = f64;
+
+#[derive(Debug)]
+struct GroundStation {
+    radio_freq: Mhz
+}
 
 impl GroundStation{
+    fn new(radio_freq: f64) -> GroundStation {
+        GroundStation { radio_freq }
+    }
     fn connect(&self, sat_id: u64) -> CubeSat {
         CubeSat { id: sat_id }
     }
@@ -87,7 +99,7 @@ fn check_status(satellite: CubeSat) -> SatelliteStatus {
  
 fn main () {
     let mut mail = Mailbox { messages: vec![] };
-    let groundstation = GroundStation {};
+    let groundstation = GroundStation { radio_freq: 88.1 };
 
     let sat_ids: Vec<u64> = get_satellite_inventory();
 
@@ -121,5 +133,35 @@ fn main () {
     // Since we implemented Copy for CubeSat, sat_c was implicitly copied
     // (it would have been moved otherwise, and then be unavailble to use in the next line)
     println!("{}", sat_c.id);
- 
+
+
+    // Another method of working with the borrow checker is to use some of
+    // Rust's specialty types. Rc<T> allows multiple references to be made
+    // RefCell<T> allows T to be mutated via a Rust feature known as 
+    // interior mutability
+
+    // NOTE
+    // Rc<T> is not thread-safe. In multithreaded code, it’s much better to 
+    // replace Rc<T> with Arc<T> and Rc<RefCell<T>> with Arc<Mutex<T>>. Arc 
+    // stands for atomic reference counter.
+
+    let station: Rc<RefCell<GroundStation>> = Rc::new(RefCell::new(
+        GroundStation::new(88.1)
+    ));
+
+    println!("Mission Control @ {:?}", station);
+
+    {
+        println!("Changing frequency in this scope...");
+        let mut borrowed = station.borrow_mut();
+        borrowed.radio_freq = 94.7;
+        println!("Frequency: {:?}", borrowed);
+    }
+    println!("Mission Control @ {:?}", station);
+    
+    let mut borrowed = station.borrow_mut();
+    borrowed.radio_freq = 88.1;
+    println!("Mission Control @ {:?}", station);
+    println!("borrowed Control @ {:?}", borrowed);
+
 }
