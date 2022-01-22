@@ -1,6 +1,7 @@
 #![allow(unused_variables)]
 
-#[derive(Debug)]
+// Clone and Copy traits can be Derived for simple Structs 
+#[derive(Debug, Clone, Copy)]
 enum SatelliteStatus {
     Ok
 }
@@ -32,12 +33,26 @@ impl Mailbox {
     }
 }
 
+
+// Clone and Copy can also be implemented manually
 #[derive(Debug)]
 struct CubeSat {
     id: u64,
 }
 
+impl Copy for CubeSat { } // Empty because CubeSat wrapps an i64, which has Copy
+
+impl Clone for CubeSat {
+    fn clone(&self) -> Self {
+        CubeSat { id: self.id }
+    }
+}
+
 impl CubeSat {
+    fn new(id: u64) -> CubeSat {
+        CubeSat { id }
+    }
+
     fn receive(&self, mailbox: &mut Mailbox) -> Option<Message> {
         mailbox.deliver(&self)
     }
@@ -65,7 +80,7 @@ fn get_satellite_inventory() -> Vec<u64> {
 }
 
 
-fn check_status(satellite: &CubeSat) -> SatelliteStatus {
+fn check_status(satellite: CubeSat) -> SatelliteStatus {
     SatelliteStatus::Ok
 }
 
@@ -89,40 +104,22 @@ fn main () {
 
     let sat_ids: Vec<u64> = get_satellite_inventory();
 
-    for id in sat_ids {
-        let satellite = groundstation.connect(id);
+    for id in &sat_ids {
+        let satellite = groundstation.connect(*id);
         let message = satellite.receive(&mut mail);
         println!("{:?}: {:?}", satellite, message);
     }
 
-    // let mut sat_a = CubeSat {
-    //     id: 0,
-    //     mailbox: Mailbox {
-    //         messages: vec![]
-    //     }
-    // };
-
-
-
-    // println!("t0: {:?}", sat_a);
-
-    // groundstation.send(&mut sat_a, Message::from("SAT-A, how copy?"));
-
-    // println!("t1: {:?}", sat_a);
-
-    // let message = sat_a.receive();
-
-    // println!("t2: {:?}", sat_a);
-
-    // println!("{:?}", message);
-//    let a_status = check_status(&sat_a);
-//    let b_status = check_status(sat_b);
-//    let c_status = check_status(sat_c);
-//    println!("a: {:?}, b: {:?}, c: {:?}", a_status, b_status, c_status);
+    let sat_a = CubeSat::new(sat_ids[0]);
+    let sat_b = CubeSat::new(sat_ids[1]);
+    let sat_c = CubeSat::new(sat_ids[2]);
+    let a_status = check_status(sat_a.clone());
+    let b_status = check_status(sat_b.clone());
+    let c_status = check_status(sat_c);
+    println!("a: {:?}, b: {:?}, c: {:?}", a_status, b_status, c_status);
+    // Since we cloned sats a & b, those variables can still be used.
+    // Since we implemented Copy for CubeSat, sat_c was implicitly copied
+    // (it would have been moved otherwise, and then be unavailble to use in the next line)
+    println!("{}", sat_c.id);
  
-//    // "waiting" ...
-//    let a_status = check_status(sat_a);
-//    let b_status = check_status(sat_b);
-//    let c_status = check_status(sat_c);
-//    println!("a: {:?}, b: {:?}, c: {:?}", a_status, b_status, c_status);
 }
